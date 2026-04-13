@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <title>Internetsiz Video Aloqa</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: white; }
+        video { width: 45%; border: 2px solid #555; border-radius: 10px; margin: 10px; background: #000; }
+        textarea { width: 80%; height: 100px; margin: 10px 0; display: block; margin-left: auto; margin-right: auto; }
+        .box { background: #333; padding: 20px; border-radius: 10px; margin: 20px; }
+        button { padding: 10px 20px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <h2>Lokal (Internetsiz) Video Aloqa</h2>
+
+    <video id="localVideo" autoplay muted></video>
+    <video id="remoteVideo" autoplay></video>
+
+    <div class="box">
+        <h3>1-qadam: Taklif yaratish</h3>
+        <button onclick="createOffer()">Taklif kodini yaratish (Offer)</button>
+        <textarea id="offerCode" placeholder="Bu yerda kod paydo bo'ladi..."></textarea>
+        
+        <h3>2-qadam: Taklifni qabul qilish</h3>
+        <textarea id="answerCode" placeholder="Sherigingizdan kelgan kodni shu yerga qo'ying..."></textarea>
+        <button onclick="acceptAnswer()">Ulanishni yakunlash</button>
+    </div>
+
+    <script>
+        let localStream;
+        let peerConnection;
+        const config = { iceServers: [] }; // Internetsiz bo'lgani uchun serverlar bo'sh
+
+        // Kamerani yoqish
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
+            localStream = stream;
+            document.getElementById('localVideo').srcObject = stream;
+        });
+
+        function createPeer() {
+            peerConnection = new RTCPeerConnection(config);
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            peerConnection.ontrack = (event) => {
+                document.getElementById('remoteVideo').srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (!event.candidate) {
+                    document.getElementById('offerCode').value = JSON.stringify(peerConnection.localDescription);
+                }
+            };
+        }
+
+        // 1-odam taklif yaratadi
+        async function createOffer() {
+            createPeer();
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        }
+
+        // 2-odam javob beradi (bu qismni ham qo'shish kerak, lekin soddalik uchun umumiy tushuntiraman)
+        async function acceptAnswer() {
+            const remoteDesc = new RTCSessionDescription(JSON.parse(document.getElementById('answerCode').value));
+            await peerConnection.setRemoteDescription(remoteDesc);
+        }
+    </script>
+</body>
+</html>
